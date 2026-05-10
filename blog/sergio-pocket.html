@@ -104,12 +104,12 @@
 
                 <h2>How the tax skill got built</h2>
 
-                <p>The first time I had to file my monthly Argentine cross-province gross-income return through SIFERE (the federal system for taxpayers operating in more than one province) for a month with no income, I drove the browser myself and narrated each step to Sergio as I went. At the end I asked him to save what we had just done as a skill. He wrote a markdown file under <code>skills/argentina-tax/sifere-ddjj-zero-income</code>:</p>
+                <p>The first time I had to file my monthly Argentine cross-province gross-income return through SIFERE (the federal system for taxpayers operating in more than one province), I drove the browser myself and narrated each step to Sergio as I went. At the end I asked him to save what we had just done as a skill. He wrote a markdown file under <code>skills/argentina-tax/sifere-monthly-filing</code>:</p>
 
 <pre><code class="language-none">---
-name: sifere-ddjj-zero-income
-description: File a monthly cross-province gross-income return
-  with $0 income via Argentina's SIFERE web portal.
+name: sifere-monthly-filing
+description: File a monthly cross-province gross-income
+  return via Argentina's SIFERE web portal.
 ---
 
 ## Step 1. Sign in
@@ -117,14 +117,18 @@ description: File a monthly cross-province gross-income return
 2. Sign in with the taxpayer ID and password.
 3. From the services menu, click the SIFERE Web entry.
 
-## Step 4. Verify everything is zero
-- Each jurisdiction's totals must be 0.00.
-- Each deduction must be 0.00.
-- Do not modify; values default to zero.</code></pre>
+## Step 2. Open the monthly filing list
+1. Click "Monthly returns".
+2. Identify the period that still needs to be filed.
+3. Click "New monthly return" and pick the year and month.
+
+## Step 3. Fill in jurisdiction values
+1. For each jurisdiction, calculate the total and the deduction.
+2. Confirm the totals before submitting.</code></pre>
 
                 <h2>The next month, Sergio filed it himself</h2>
 
-                <p>The next month, the cron-triggered reminder fired in the morning. I sent back a single message: "do it." Sergio loaded the skill, opened a real browser session, signed into the tax portal, opened the new period's filing, copied the previous month's structure, verified every line was zero, signed it, and submitted. The reply was a transaction number and a status of "filed." <strong>The agent doesn't get smarter; the skill file does, and the agent reads it.</strong> That's the closed loop. Every successful run becomes a paragraph in a markdown file the next run consults.</p>
+                <p>The next month, the cron-triggered reminder fired in the morning. I sent back a single message: "do it." Sergio loaded the skill, opened a real browser session, signed into the tax portal, opened the new period's filing, copied the previous month's structure, signed it, and submitted. The reply was a transaction number and a status of "filed." <strong>The agent doesn't get smarter; the skill file does, and the agent reads it.</strong> That's the closed loop. Every successful run becomes a paragraph in a markdown file the next run consults.</p>
 
                 <h2>The labor package at the toll booth</h2>
 
