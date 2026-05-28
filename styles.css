@@ -1531,11 +1531,6 @@ body {
     color: var(--primary-color);
     font-weight: 700;
     font-size: 0.9375rem;
-    transition: gap 0.3s ease;
-}
-
-.blog-card:hover .blog-card-cta {
-    gap: 0.875rem;
 }
 
 .blog-card-cta svg {
@@ -1543,7 +1538,7 @@ body {
 }
 
 .blog-card:hover .blog-card-cta svg {
-    transform: translateX(2px);
+    transform: translateX(4px);
 }
 
 .blog-card-empty {
