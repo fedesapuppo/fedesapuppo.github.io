@@ -9,7 +9,7 @@
     <atom:link href="https://fedesapuppo.com/blog/feed.xml" rel="self" type="application/rss+xml"/>
 
     <item>
-      <title>Shrinking a dev database, bottom-up</title>
+      <title>How I load anonymized production data into dev with evil_seed</title>
       <link>https://fedesapuppo.com/blog/evil-seed-bottom-up.html</link>
       <guid>https://fedesapuppo.com/blog/evil-seed-bottom-up.html</guid>
       <pubDate>Wed, 27 May 2026 00:00:00 +0000</pubDate>

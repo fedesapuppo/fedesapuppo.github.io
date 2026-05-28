@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Every developer on the team was downloading a production database dump and giving up half their disk to it. I refused, lived on seeds, and one day was asked to ship a comprehensive anonymized demo DB. Top-down with evil_seed failed. Bottom-up worked, and the dump dropped to a fraction of the original.">
-    <title>Shrinking a dev database, bottom-up | Federico Sapuppo</title>
+    <title>How I load anonymized production data into dev with evil_seed | Federico Sapuppo</title>
 
     <meta property="og:type" content="article">
-    <meta property="og:title" content="Shrinking a dev database, bottom-up">
+    <meta property="og:title" content="How I load anonymized production data into dev with evil_seed">
     <meta property="og:description" content="A quarter-of-the-disk dev DB, a top-down attempt that wouldn't stop pruning, and the evil_seed config that fit the demo into a single-digit-minute load.">
     <meta property="article:published_time" content="2026-05-27">
     <meta property="article:author" content="Federico Sapuppo">
@@ -16,7 +16,7 @@
     <meta property="og:image:height" content="1600">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:image" content="https://fedesapuppo.com/og-image.jpg">
-    <meta name="twitter:title" content="Shrinking a dev database, bottom-up">
+    <meta name="twitter:title" content="How I load anonymized production data into dev with evil_seed">
     <meta name="twitter:description" content="A quarter-of-the-disk dev DB, a top-down attempt that wouldn't stop pruning, and the evil_seed config that fit the demo into a single-digit-minute load.">
 
     <link rel="alternate" type="application/rss+xml" title="Off The Rails: Federico Sapuppo" href="https://fedesapuppo.com/blog/feed.xml">
@@ -31,7 +31,7 @@
     {
       "@context": "https://schema.org",
       "@type": "BlogPosting",
-      "headline": "Shrinking a dev database, bottom-up",
+      "headline": "How I load anonymized production data into dev with evil_seed",
       "datePublished": "2026-05-27",
       "author": {
         "@type": "Person",
@@ -74,7 +74,7 @@
                 </svg>
                 Field Notes · 7 min read
             </span>
-            <h1 class="post-title">Shrinking a dev database, bottom-up</h1>
+            <h1 class="post-title">How I load anonymized production data into dev with evil_seed</h1>
             <div class="post-meta">
                 <div class="post-meta-author">
                     <div class="post-author-avatar">FS</div>
@@ -118,6 +118,10 @@
 
                 <h2>Bottom-up: declare every root explicitly</h2>
 
+                <p>By bottom-up I do not mean leaves. I mean picking the handful of tables the demo actually reads and giving each its own scoped root, instead of starting from one tenant and hoping the walker stops at the right place.</p>
+
+                <p>Even a single Account-as-root walk explodes on a schema like this. Tables like the audit log and the PaperTrail-style version history are populated by every action across every tenant; walking the associations of one Account pulls in slices of them the demo does not need, and through them, slices of other tenants. A single root tries to bound the entire graph from one place. The schema does not let it.</p>
+
                 <p>Instead of starting from the database and pruning outward, I gave each table the demo needed its own scoped root. The tenant became one of many entries, not the entry. <strong>The walker stopped escaping because there was nothing to escape to:</strong> every root knew its own bounds. I started with the dozen or so roots I knew I would need, then <strong>loaded the dump, clicked through the demo, and added a new root every time something rendered empty or crashed.</strong> The final config declares around fifty.</p>
 
                 <p>The skeleton of the config:</p>
@@ -143,7 +147,7 @@
   config.customize("ItemResponse") { |attrs| scrub_json!(attrs, "response") }
 end</code></pre>
 
-                <p>Two flags carry their weight. <code>unscoped = true</code>, because a default scope (a <code>kept</code> from soft-deletes, for instance) will silently filter the explicitly scoped root a second time and drop, say, every deactivated member you actually need. <code>dont_nullify = true</code>, because evil-seed's per-row FK-nullify pass is O(N) on large tables with cross-tenant <code>belongs_to</code>, and we do not need it: the loader runs <code>session_replication_role = replica</code>, so dangling FKs to records outside the dump are tolerated.</p>
+                <p>Two flags matter. <code>unscoped = true</code> because a default scope (a <code>kept</code> from soft-deletes, for instance) will silently re-filter your scoped root and drop rows you carefully selected. <code>dont_nullify = true</code> because the loader runs with FK triggers disabled anyway, so evil-seed's per-row FK-nullify pass would just burn time on tables it does not need to touch.</p>
 
                 <p>The other choice that mattered was less obvious. <strong>The scoping lists are interpolated as literal <code>IN (1,2,3,...)</code>, not <code>IN (SELECT ...)</code>.</strong> With subqueries the planner kept picking parallel seq scans on the largest response tables, turning a single dump into hours. Materializing the id sets up front and interpolating them as literals forced index usage on the per-batch SELECTs evil-seed issues. The dump dropped from hours to minutes.</p>
 
@@ -157,14 +161,14 @@ end</code></pre>
 
                 <h2>The dump that wouldn't unpack</h2>
 
-                <p>Then the dump shipped, and then the dump didn't. Bottom-up scoping had bounded the question and document catalog to what the demo actually rendered. But demo users' responses, quizzes, and todos still pointed at rows outside that bound, the kind of cross-tenant references the production schema is full of. Loading the dump with <code>session_replication_role = replica</code> let those orphans in: FK triggers were off, so nothing complained. Everything looked fine. Reports rendered, users signed in.</p>
+                <p>Then the dump shipped, and then the dump didn't. Bottom-up scoping had bounded the entity catalog to what the demo rendered, but demo users' responses, comments, and todos still pointed at rows outside that bound. Loading with <code>session_replication_role = replica</code> let those orphans in: FK triggers were off, so nothing complained at load time.</p>
 
-                <p>The complaint showed up only when I tried to repack the loaded demo DB into a <code>pg_dump -Fc</code> archive for distribution. A consumer's <code>pg_restore</code> blew up on five <code>ADD CONSTRAINT</code> statements covering roughly 47,000 orphan rows across six child tables. The fix was a short <code>DELETE</code> block at load time, before the pack step. <strong>Disabling FK triggers to load a slice means you also have to clean up after them before you ship the slice.</strong></p>
+                <p>The complaint showed up only when I repacked the loaded demo DB into a <code>pg_dump -Fc</code> archive for distribution. A consumer's <code>pg_restore</code> blew up on a handful of <code>ADD CONSTRAINT</code> statements covering thousands of orphan rows. The fix was a short <code>DELETE</code> block at load time, before the pack step. <strong>Disabling FK triggers to load a slice means you also have to clean up after them before you ship the slice.</strong></p>
 
                 <h2>What changed in how we work</h2>
 
                 <ul>
-                    <li><strong>The dump shrank by orders of magnitude.</strong> A production restore weighs in around 315 GB. Build produces a plaintext <code>.sql</code> under 900 MB (the PII sweep greps against it), and a <code>pg_dump -Fc</code> archive smaller still, around 170 MB. We ship the archive, not the SQL: about 0.05% of the restored production database, loadable on a fresh laptop in single-digit minutes.</li>
+                    <li><strong>The dump shrank by orders of magnitude.</strong> A production restore weighs in around half a terabyte. Build produces a plaintext <code>.sql</code> under a gigabyte (the PII sweep greps against it), and a <code>pg_dump -Fc</code> archive under 200 MB. We ship the archive, not the SQL: roughly 2,500&times; smaller than the source, loadable on a fresh laptop in single-digit minutes.</li>
                     <li><strong>No real PII on disk.</strong> A scripted sweep fails the build if a source name, email, or subdomain leaks into the dump file.</li>
                     <li><strong>Bottom-up is the move whenever a graph walker keeps escaping.</strong> Top-down works for trees. Bottom-up works for densely cross-linked schemas.</li>
                     <li><strong>Anonymization belongs upstream of the serializer, not in front of it.</strong> If a column has an attribute type, write the logical value and let the column do its job.</li>
