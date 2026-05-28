@@ -2442,14 +2442,16 @@ body.blog-post {
 
 .post-content a {
     color: var(--primary-color);
-    text-decoration: none;
-    border-bottom: 1px solid rgba(220, 38, 38, 0.3);
-    transition: all 0.3s ease;
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+    text-decoration-color: rgba(220, 38, 38, 0.75);
+    transition: all 0.2s ease;
 }
 
 .post-content a:hover {
     color: var(--accent-warm);
-    border-bottom-color: var(--accent-warm);
+    text-decoration-color: var(--accent-warm);
 }
 
 .post-content strong {
